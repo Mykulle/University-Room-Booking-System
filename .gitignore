@@ -1,0 +1,16 @@
+# IDE and Editor
+.idea/
+.vscode/
+
+
+# Backend (Maven)
+room-booking-backend/target/
+room-booking-backend/.mvn/
+
+# Frontend (Node.js)
+room-booking-frontend/node_modules/
+room-booking-frontend/dist/
+room-booking-frontend/build/
+
+# Environment Variables
+.env
