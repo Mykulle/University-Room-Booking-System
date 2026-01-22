@@ -106,10 +106,11 @@ and fault-tolerance of `microservices`:
 ---
 
 ## Bounded contexts 
-![Borrow.png](../../../../Downloads/Borrow.png)
+<img width="1920" height="1080" alt="Borrow" src="https://github.com/user-attachments/assets/5caf9f59-7e9a-494d-9a66-5a8938b117bc" />
 
 ### `identity` — users, roles, bans
 - roles: `STUDENT`, `STAFF`
+
 - ban/suspension status
 - JWT integration
 
