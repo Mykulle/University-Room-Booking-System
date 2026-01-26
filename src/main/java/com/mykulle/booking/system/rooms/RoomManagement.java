@@ -14,14 +14,14 @@ public class RoomManagement {
     private final RoomMapper roomMapper;
 
     /* Add a new room to the system */
-    public RoomDTO addRoom(String name, String building, String level, String roomCode) {
+    public RoomDTO addRoom(String name, String roomLocation) {
 
         // Check if room with the same location already exists
-        if(roomRepository.existsByLocationBuildingAndLocationLevelAndLocationRoomCode(building, level, roomCode)) {
-            throw new IllegalArgumentException("Room already exists at location: " + building + "-" + level + "-" + roomCode);
+        if(roomRepository.existsByRoomLocation(roomLocation)) {
+            throw new IllegalArgumentException("Room already exists at location: " + roomLocation);
         }
 
-        var room = new Room(name, new Room.RoomLocation(building, level, roomCode));
+        var room = new Room(name, new Room.RoomLocation(roomLocation));
         return roomMapper.toDTO(roomRepository.save(room));
 
     }
@@ -45,7 +45,7 @@ public class RoomManagement {
     /* Set room as inactive so it can be booked */
     public RoomDTO deactivateRoom(Long roomId) {
         var room = roomRepository.findById(roomId)
-                .map(Room ::setInActive)
+                .map(Room ::setInactive)
                 .orElseThrow(() -> new IllegalArgumentException("Room not found with id: " + roomId));
         return roomMapper.toDTO(room);
     }

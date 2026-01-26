@@ -14,17 +14,14 @@ class Room {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String name;
 
     /* Room Location(e.g. "LIB-03-12") */
     @Embedded
-    @AttributeOverrides({
-        @AttributeOverride(name = "building", column = @Column(name = "building", nullable = false)),
-        @AttributeOverride(name = "level",    column = @Column(name = "level", nullable = false)),
-        @AttributeOverride(name = "roomCode", column = @Column(name = "room_code", nullable = false, updatable = false))
-    })
     private RoomLocation location;
 
+    @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private RoomStatus status;
 
@@ -37,19 +34,16 @@ class Room {
     }
 
     public Room(String name, RoomLocation location) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Room name is required");
+        }
+        if (location == null) {
+            throw new IllegalArgumentException("Room location is required");
+        }
 
         this.name = name;
         this.location = location;
         this.status = RoomStatus.ACTIVE;
-    }
-    @Embeddable
-    record RoomLocation(String building, String level, String roomCode) {
-        public RoomLocation {
-            if (roomCode == null || roomCode.isBlank()) throw new IllegalArgumentException("Room code is required");
-            if (building == null || building.isBlank()) throw new IllegalArgumentException("Building is required");
-            if (level == null || level.isBlank()) throw new IllegalArgumentException("Level is required");
-
-        }
     }
 
     public Room setActive() {
@@ -60,12 +54,31 @@ class Room {
         return this;
     }
 
-    public Room setInActive() {
-        if(isActive()) {
-            throw new IllegalStateException("Room is inactive");
+    public Room setInactive() {
+        if(isInactive()) {
+            throw new IllegalStateException("Room is already inactive");
         }
         this.status = RoomStatus.INACTIVE;
         return this;
+    }
+
+    @Embeddable
+    record RoomLocation(@Column(name = "room_location", nullable = false, unique = true) String value) {
+
+        private static final String LOCATION_PATTERN = "^[A-Z]{2,10}-\\d{2}-\\d{2,4}$";
+
+        public RoomLocation {
+
+            if (value == null || value.isBlank()) {
+                throw new IllegalArgumentException("Room location is required");
+            }
+
+            if (!value.matches(LOCATION_PATTERN)) {
+                throw new IllegalArgumentException(
+                        "Invalid room location format. Expected format: BUILDING-LEVEL-ROOMCODE (e.g., LIB-03-12)"
+                );
+            }
+        }
     }
 
     public enum RoomStatus { ACTIVE, INACTIVE }

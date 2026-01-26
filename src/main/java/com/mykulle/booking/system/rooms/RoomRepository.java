@@ -1,6 +1,8 @@
 package com.mykulle.booking.system.rooms;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -11,6 +13,7 @@ interface RoomRepository extends JpaRepository<Room, Long> {
 
     Optional<Room> findRoomByName(String name);
 
-    boolean existsByLocationBuildingAndLocationLevelAndLocationRoomCode(String building, String level, String roomCode);
+    @Query("SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END FROM Room r WHERE r.location.value = :roomLocation")
+    boolean existsByRoomLocation(@Param("roomLocation") String roomLocation);
 
 }

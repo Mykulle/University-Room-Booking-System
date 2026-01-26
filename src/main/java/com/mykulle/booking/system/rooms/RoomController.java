@@ -2,6 +2,7 @@ package com.mykulle.booking.system.rooms;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,8 +17,8 @@ class RoomController {
 
     @PostMapping
     ResponseEntity<RoomDTO> addRoom(@Valid @RequestBody  AddRoomRequest request) {
-        var roomDTO = rooms.addRoom(request.name(), request.building(), request.level(), request.roomCode());
-        return ResponseEntity.ok(roomDTO);
+        var roomDTO = rooms.addRoom(request.name(), request.roomLocation());
+        return ResponseEntity.status(HttpStatus.CREATED).body(roomDTO);
     }
 
     @DeleteMapping("/{id}")
@@ -40,8 +41,6 @@ class RoomController {
 
     record AddRoomRequest(
             String name,
-            String building,
-            String level,
-            String roomCode
+            String roomLocation
     ) {}
 }
