@@ -204,3 +204,18 @@ src/main/java
         ├── RoomManagement
         ├── RoomMapper
         └── RoomRepository
+```
+
+---
+## Current limitation (known design flaw)
+The current design still has room for improvement.
+
+`BookingManagement` is tightly coupled to `RoomManagement` through room status.
+Whenever a booking is created or checked in, the booking module must interact with the rooms module to update room status (for example, marking it `ACTIVE` for the timeslot). This creates a write-time dependency between modules and blurs the module boundaries.
+
+Why this matters:
+
+- Two aggregates are updated as part of one operation (room state and booking state).
+- Booking is the source of truth for occupancy, but room state is being updated to reflect occupancy.
+- Tight coupling makes independent testing and evolution harder.
+- This is an acceptable tradeoff for early iterations, but it is not the end state.
