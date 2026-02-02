@@ -1,8 +1,8 @@
 package com.mykulle.booking.system.booking;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -10,15 +10,34 @@ import java.util.List;
 interface BookingRepository extends JpaRepository<Booking, Long> {
 
     @Query("""
-        SELECT b FROM Booking b 
-        WHERE b.room.roomLocation = :roomLocation 
+        SELECT b FROM Booking b
+        WHERE b.room.roomLocation = :roomLocation
         AND b.status IN ('CONFIRMED', 'CHECKED_IN')
-        AND b.timeSlot.startTime < :endTime 
+        AND b.timeSlot.startTime < :endTime
         AND b.timeSlot.endTime > :startTime
         """)
-    List<Booking> findConflictingBookings(
-            @Param("roomLocation") String roomLocation,
-            @Param("startTime") LocalDateTime startTime,
-            @Param("endTime") LocalDateTime endTime
-    );
+    List<Booking> findConflictingBookings(String roomLocation,LocalDateTime startTime, LocalDateTime endTime);
+
+    @Query("""
+        SELECT b FROM Booking b
+        WHERE b.status IN ('CONFIRMED','CHECKED_IN')
+        AND b.timeSlot.startTime < :endTime
+        AND b.timeSlot.endTime > :startTime
+        """)
+    List<Booking> findBookingsBetween(LocalDateTime startTime, LocalDateTime endTime);
+
+    @Query("""
+        SELECT b FROM Booking b
+        WHERE b.timeSlot.endTime < :now
+        AND b.status IN ('CONFIRMED','CHECKED_IN')
+        """)
+    List<Booking> findEndedBookings(LocalDateTime now);
+
+    @Query("""  
+        SELECT b FROM Booking b
+        WHERE b.status = 'CONFIRMED'
+        AND b.timeSlot.startTime < :threshold
+        """)
+
+    List<Booking> findNoShowBookings(LocalDateTime threshold);
 }

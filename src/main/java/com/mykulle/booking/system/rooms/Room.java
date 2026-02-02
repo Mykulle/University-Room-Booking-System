@@ -43,7 +43,7 @@ class Room {
 
         this.name = name;
         this.location = location;
-        this.status = RoomStatus.ACTIVE;
+        this.status = RoomStatus.INACTIVE;
     }
 
     public Room setActive() {

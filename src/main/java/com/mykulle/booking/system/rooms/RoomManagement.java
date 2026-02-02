@@ -70,4 +70,50 @@ public class RoomManagement {
                 .toList();
     }
 
+    /* List Rooms by Status by name (keeps booking module decoupled from Room enum)
+       Accepts case-insensitive status names like "ACTIVE" or "INACTIVE" */
+    @Transactional(readOnly = true)
+    public List<RoomDTO> listRoomByStatus(String status) {
+        try {
+            var enumStatus = Room.RoomStatus.valueOf(status.toUpperCase());
+            return listRoomByStatus(enumStatus);
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Invalid room status: " + status);
+        }
+    }
+
+    /* Get room by location */
+    @Transactional(readOnly = true)
+    public RoomDTO getRoomByLocation(String roomLocation) {
+        return roomRepository.findRoomByRoomLocation(roomLocation)
+                .map(roomMapper::toDTO)
+                .orElseThrow(() -> new IllegalArgumentException("Room not found with location: " + roomLocation));
+    }
+
+    /* Check if a room is active by location (keeps booking module from touching room internals) */
+    @Transactional(readOnly = true)
+    public boolean isRoomActive(String roomLocation) {
+        return roomRepository.findRoomByRoomLocation(roomLocation)
+                .map(Room::isActive)
+                .orElseThrow(() -> new IllegalArgumentException("Room not found with location: " + roomLocation));
+    }
+
+    /* Activate room by location */
+    @Transactional
+    public RoomDTO activateRoomByLocation(String roomLocation) {
+        var room = roomRepository.findRoomByRoomLocation(roomLocation)
+                .map(Room::setActive)
+                .orElseThrow(() -> new IllegalArgumentException("Room not found with location: " + roomLocation));
+        return roomMapper.toDTO(roomRepository.save(room));
+    }
+
+    /* Deactivate room by location */
+    @Transactional
+    public RoomDTO deactivateRoomByLocation(String roomLocation) {
+        var room = roomRepository.findRoomByRoomLocation(roomLocation)
+                .map(Room::setInactive)
+                .orElseThrow(() -> new IllegalArgumentException("Room not found with location: " + roomLocation));
+        return roomMapper.toDTO(roomRepository.save(room));
+    }
+
 }

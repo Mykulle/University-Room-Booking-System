@@ -3,6 +3,8 @@ package com.mykulle.booking.system.booking;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -74,6 +76,16 @@ class Booking {
         this.status = BookingStatus.CANCELED;
         return this;
     }
+
+    public Booking markAsNoShow() {
+        if (isCanceled()) {
+            throw new IllegalStateException("Booking is already canceled");
+        }
+
+        this.status = BookingStatus.NO_SHOW;
+        return this;
+    }
+
 
 
     @Embeddable

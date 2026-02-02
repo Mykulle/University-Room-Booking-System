@@ -2,6 +2,7 @@ package com.mykulle.booking.system.booking;
 
 
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -9,12 +10,16 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.mykulle.booking.system.rooms.RoomManagement;
+import com.mykulle.booking.system.rooms.RoomDTO;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/booking")
 public class BookingController {
 
     private final BookingManagement bookings;
+    private final RoomManagement rooms; // added to list available rooms and coordinate view
 
     @PostMapping
     public ResponseEntity<BookingDTO> createBooking(@RequestBody CreateBookingRequest request) {
@@ -36,6 +41,21 @@ public class BookingController {
     public ResponseEntity<List<BookingDTO>> getAllBookings() {
         var allBookings = bookings.getAllBookings();
         return ResponseEntity.ok(allBookings);
+    }
+
+    @GetMapping("/available")
+    public ResponseEntity<List<RoomDTO>> listAvailableRooms() {
+        var available = rooms.listRoomByStatus("INACTIVE");
+        return ResponseEntity.ok(available);
+    }
+
+    @GetMapping("/availability")
+    public ResponseEntity<List<RoomAvailabilityDTO>> dailyAvailability(
+            @RequestParam(value = "date", required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+                    java.time.LocalDate date) {
+        var availability = bookings.listDailyAvailability(date);
+        return ResponseEntity.ok(availability);
     }
 
     @PostMapping("/{id}/check-in")
