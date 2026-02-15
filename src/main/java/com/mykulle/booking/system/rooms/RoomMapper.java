@@ -6,7 +6,7 @@ import org.mapstruct.MappingConstants;
 import org.mapstruct.ReportingPolicy;
 
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING, unmappedTargetPolicy = ReportingPolicy.IGNORE)
-public interface RoomMapper {
+interface RoomMapper {
 
     @Mapping(source = "location.value", target = "roomLocation")
     RoomDTO toDTO(Room room);
