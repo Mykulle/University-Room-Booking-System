@@ -54,6 +54,15 @@ public class CatalogManagement {
     }
 
     /**
+     * Locates a room by its ID
+     */
+    @Transactional(readOnly = true)
+    public Optional<RoomDTO> locateRoomById(Long roomId) {
+        return catalogRepository.findById(roomId)
+                .map(mapper::toDTO);
+    }
+
+    /**
      * Locates a room by its location
      */
     @Transactional(readOnly = true)

@@ -19,7 +19,7 @@ public class CatalogRoom {
     @Identity
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long Id;
 
     @Embedded
     private RoomProfile profile;
