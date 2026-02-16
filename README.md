@@ -152,6 +152,5 @@ In this repository, Spring Modulith is used for two purposes:
 ## API Documentation(Swagger UI)
 The API documentation is available at: http://localhost:8080/swagger-ui.html
 
-![img.png](img.png)
-
-![img_1.png](img_1.png)
+<img width="1803" height="694" alt="image" src="https://github.com/user-attachments/assets/93c74ca2-19a8-4787-80dd-e9d4885f36d2" />
+<img width="1825" height="557" alt="image" src="https://github.com/user-attachments/assets/f14d493c-ef35-4f57-802c-0cd3fea1545c" />
