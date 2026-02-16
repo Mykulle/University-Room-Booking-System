@@ -149,12 +149,6 @@ In this repository, Spring Modulith is used for two purposes:
     - Reservation listens to these events to update its local room cache
     - Enables eventual consistency without tight runtime coupling
 
-Module verification test used in this repo:
-
-```java
-ApplicationModules.of(RoomBookingSystemApplication.class).verify();
-```
-
 ## API Documentation(Swagger UI)
 The API documentation is available at: http://localhost:8080/swagger-ui.html
 
