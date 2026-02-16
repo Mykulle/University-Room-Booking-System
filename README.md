@@ -1,13 +1,15 @@
-# Building a University Study Room Booking System using Domain-Driven Design and a Modular Monolith approach
+# Building a University Study Room Booking System using Domain-Driven Design and Spring Modulith
 
 This repository contains a University Study Room Booking System built with:
 
 - Java
 - Spring Boot
 - H2 (development database)
-- DDD-style domain modeling (bounded contexts, aggregates, value objects)
+- Domain-Driven Design (bounded contexts, aggregates, value objects)
+- Spring Modulith (explicit module boundaries + verification)
+- jMolecules (layered structure inside each module)
 
-The codebase is structured as a modular monolith using package-level boundaries today. A future branch will introduce Spring Modulith to make module boundaries explicit and enforceable.
+This branch introduces a domain model refactor that removes tight coupling between booking workflows and the room catalog by separating operational state from time-based occupancy.
 
 ---
 
@@ -15,10 +17,10 @@ The codebase is structured as a modular monolith using package-level boundaries 
 
 University study rooms are scarce. The failure modes are predictable:
 
-- People book "just in case" and never show up (`NO_SHOW`).
-- A few power users keep booking and block everyone (`HOARDING`).
-- Staff end up being the enforcement layer (`MANUAL_POLICING`).
-- Conflicts happen because the system cannot answer: who is allowed here right now (`DISPUTES`).
+- People book "just in case" and never show up (`NO_SHOW`)
+- A few power users keep booking and block everyone (`HOARDING`)
+- Staff end up being the enforcement layer (`MANUAL_POLICING`)
+- Conflicts happen because the system cannot answer: who is allowed here right now (`DISPUTES`)
 
 This project focuses on one enforcement mechanism: time-limited check-in.
 
@@ -29,16 +31,34 @@ Increase room utilization without human interference.
 
 ---
 
+## New business requirement
+
+A room has two different kinds of state:
+
+1. Operational state (admin-controlled, not time-based)
+    - Example statuses: `ENABLED`, `DISABLED`
+    - Managed by administrators
+    - Must not be changed by booking flows
+
+2. Time-based occupancy (derived from bookings)
+    - A room is available or unavailable for a specific time range
+    - Must be computed from booking data and booking lifecycle rules
+    - Must not be stored on the room catalog entity
+
+This requirement exists because "room status" is a real domain concept for admins (operational readiness) and should not be overloaded to represent time-based occupancy.
+
+---
+
 ## The business problem (in plain terms)
 
-1. Students book study rooms in fixed time increments.
-2. A booking is not valid unless the student checks in within the allowed check-in window.
-3. If check-in succeeds, the booking remains valid for the timeslot.
-4. If check-in fails (deadline passes), the booking becomes a no-show and the room becomes available again.
-5. Administrators manage the room catalog (add and remove rooms).
-6. The system must prevent overlapping bookings and enforce booking state transitions correctly.
+1. Students book study rooms in fixed time increments
+2. A booking is not valid unless the student checks in within the allowed check-in window
+3. If check-in succeeds, the booking remains valid for the timeslot
+4. If check-in fails (deadline passes), the booking becomes a no-show and the room becomes available again
+5. Administrators manage the room catalog (add, remove, enable, disable rooms)
+6. The system must prevent overlapping bookings and enforce booking state transitions correctly
 
-This is intentionally scoped to the core booking and check-in rules. Authentication and authorization are not implemented yet.
+Authentication and authorization are not implemented yet.
 
 ---
 
@@ -59,163 +79,85 @@ Example transitions:
 - `CHECK_IN_REQUIRED` -> `CHECKED_IN` when check-in succeeds
 - `CHECK_IN_REQUIRED` -> `NO_SHOW` when the check-in deadline passes
 - `CHECKED_IN` -> `COMPLETED` when end time passes
-- `CONFIRMED` -> `CANCELLED` before start time
+- `CONFIRMED` -> `CANCELLED` before end time
 
 Hard rules (examples):
 
-- You cannot check in unless status is `CHECK_IN_REQUIRED`.
-- A booking becomes `NO_SHOW` only when the check-in deadline is reached.
-- Overlapping bookings must never result in two valid bookings for the same room and timeslot.
+- You cannot check in unless status is `CHECK_IN_REQUIRED`
+- A booking becomes `NO_SHOW` only when the check-in deadline is reached
+- Overlapping bookings must never result in two valid bookings for the same room and timeslot
 
 ---
 
-## Room availability model
+## Old approach vs new approach
 
-This system treats room availability as time-based.
+### Old approach (package boundaries only, room status overloaded)
 
-Current implementation uses a room status concept:
+The system used `Room.status = ACTIVE/INACTIVE` as a proxy for time-based occupancy.
 
-- Room status is `ACTIVE` when there is a booking in the target timeslot with status `CONFIRMED` or `CHECKED_IN`.
-- Room status is `INACTIVE` otherwise.
+Booking flows updated room status when bookings changed.
 
-In other words, "room status" here behaves like occupancy for a given time range, derived from bookings.
+What this caused:
 
----
+- Cross-module writes (booking code mutating room catalog state)
+- Room status meant two different things depending on context:
+    - admin readiness
+    - time-based occupancy
+- Harder testing because booking correctness depended on room write side effects
+- Higher risk of future bugs when new requirements appear (maintenance mode, partial enablement, blackout windows)
 
-## Breaking the domain into subdomains
+### New approach (Spring Modulith modules, operational status separated from occupancy)
 
-This domain can be split into subdomains based on who does what:
+This branch makes a clear separation:
 
-- Booking and check-in
-    - Main actor: student
-    - Core concepts: booking lifecycle, time rules, check-in enforcement, no-show handling
+- The catalog module owns operational state
+- The reservation module owns time-based occupancy and booking rules
+- Reservation derives availability from booking data and operational status, without mutating the catalog
 
-- Room catalog management
-    - Main actor: administrator
-    - Core concepts: room creation, removal, and room information
+What this improves:
 
-There can be more subdomains (identity, reporting, notifications, penalties). Since they are not part of the current requirements, they are intentionally out of scope.
-
-This is a first attempt at decomposition. It may be right or wrong. The goal is to make a reasonable cut based on current understanding and improve it over time.
-
----
-
-## Building the solution with bounded contexts
-
-For each subdomain, we solve the subdomain problem by designing a bounded context. In a modular monolith, these bounded contexts are also the modules of the application.
-
-Today, module boundaries are expressed as packages:
-
-- `rooms` module
-- `booking` module
-
-A future branch will add Spring Modulith to enforce these boundaries and validate dependencies between modules.
+- No booking workflow writes into the catalog module
+- Room operational state becomes stable and meaningful
+- Booking availability becomes deterministic and testable
+- Modules can evolve independently while staying in one deployable app
 
 ---
 
-## What Domain-Driven Design means here
+## What Spring Modulith is and why it helps here
 
-Domain-Driven Design (DDD) is a way to structure software around business rules instead of around controllers and database tables.
+Spring Modulith is a Spring project that helps you build modular monoliths with enforceable boundaries.
 
-In this project, DDD is applied in a lightweight way:
+In a normal monolith, package boundaries are convention. Developers can still import anything from anywhere, and coupling grows silently.
 
-- Bounded contexts separate concerns (`rooms`, `booking`)
-- Aggregates keep invariants consistent over time (booking lifecycle is a natural aggregate)
-- Domain behavior lives with domain state (avoid anemic domain models)
-- Repositories isolate persistence details from domain logic
-- DTOs protect the domain model from leaking into the API layer
+Spring Modulith changes that by making modules explicit and verifiable:
 
-DDD matters here because the core difficulty is correctness under time and concurrency, not CRUD wiring.
+- You structure code into application modules (often aligned with bounded contexts)
+- You expose only a small public API per module
+- You keep internals private (and Modulith will fail tests if other modules reach into them)
+- You can build reliable domain event communication between modules
+- You can verify module dependencies using tests
 
----
+In this repository, Spring Modulith is used for two purposes:
 
-## What a modular monolith means here
+1. Boundary enforcement
+    - Prevents reservation from reaching into catalog internals
+    - Prevents catalog from reaching into reservation internals
+    - Keeps the modular monolith honest over time
 
-A modular monolith is:
+2. Event-driven integration inside the monolith
+    - Catalog publishes domain events when rooms are created, removed, enabled, disabled
+    - Reservation listens to these events to update its local room cache
+    - Enables eventual consistency without tight runtime coupling
 
-- one deployable application
-- with explicit internal module boundaries
-- where modules expose small public APIs and keep internals private
+Module verification test used in this repo:
 
-You keep the operational simplicity of a monolith while still designing with boundaries. This reduces accidental coupling and makes future extraction possible if needed.
-
-This repo currently uses package boundaries to represent modules. Spring Modulith is planned to make module boundaries explicit and testable.
-
----
-
-## Bounded contexts (modules)
-
-### `rooms` module
-
-Responsibility: room catalog and room-level data.
-
-Owns:
-
-- Room entity and persistence
-- Room creation and removal
-- Room metadata and room state representation
-
-Public API shape (typical):
-
-- `RoomManagement` as the module facade
-- `RoomDTO` as the outbound contract
-- `RoomController` as the HTTP API
-
-### `booking` module
-
-Responsibility: booking lifecycle and check-in enforcement.
-
-Owns:
-
-- Booking entity and persistence
-- Booking creation and cancellation
-- Booking state transitions
-- Check-in rules and no-show transitions
-- Room availability views based on booking state (example DTO: `RoomAvailabilityDTO`)
-
-Public API shape (typical):
-
-- `BookingManagement` as the module facade
-- `BookingDTO` as the outbound contract
-- `BookingController` as the HTTP API
-
----
-
-## Repository structure
-
-Current package layout:
-
-```text
-src/main/java
-└── com/mykulle/booking/system
-    ├── RoomBookingSystemApplication
-    ├── booking
-    │   ├── Booking
-    │   ├── BookingController
-    │   ├── BookingDTO
-    │   ├── BookingManagement
-    │   ├── BookingMapper
-    │   ├── BookingRepository
-    │   └── RoomAvailabilityDTO
-    └── rooms
-        ├── Room
-        ├── RoomController
-        ├── RoomDTO
-        ├── RoomManagement
-        ├── RoomMapper
-        └── RoomRepository
+```java
+ApplicationModules.of(RoomBookingSystemApplication.class).verify();
 ```
 
----
-## Current limitation (known design flaw)
-The current design still has room for improvement.
+## API Documentation(Swagger UI)
+The API documentation is available at: http://localhost:8080/swagger-ui.html
 
-`BookingManagement` is tightly coupled to `RoomManagement` through room status.
-Whenever a booking is created or checked in, the booking module must interact with the rooms module to update room status (for example, marking it `ACTIVE` for the timeslot). This creates a write-time dependency between modules and blurs the module boundaries.
+![img.png](img.png)
 
-Why this matters:
-
-- Two aggregates are updated as part of one operation (room state and booking state).
-- Booking is the source of truth for occupancy, but room state is being updated to reflect occupancy.
-- Tight coupling makes independent testing and evolution harder.
-- This is an acceptable tradeoff for early iterations, but it is not the end state.
+![img_1.png](img_1.png)
