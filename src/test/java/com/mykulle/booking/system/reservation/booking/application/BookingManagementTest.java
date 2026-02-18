@@ -40,11 +40,11 @@ class BookingManagementTest {
 
     @Test
     void createBooking_savesBooking_whenRoomIsAvailable() {
-        var start = LocalDateTime.of(2026, 2, 17, 10, 0);
-        var end = start.plusHours(2);
+        var start = nextHalfHour(LocalDateTime.now().plusHours(1));
+        var end = start.plusMinutes(60);
         var room = enabledRoom(5L);
 
-        when(roomRepository.findById(5L)).thenReturn(Optional.of(room));
+        when(roomRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(room));
         when(bookingRepository.existsOverlappingBooking(eq(5L), eq(start), eq(end), any())).thenReturn(false);
         when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0, Booking.class));
 
@@ -66,15 +66,28 @@ class BookingManagementTest {
 
     @Test
     void createBooking_throws_whenRoomIsDisabled() {
-        var start = LocalDateTime.of(2026, 2, 17, 10, 0);
-        var end = start.plusHours(1);
+        var start = nextHalfHour(LocalDateTime.now().plusHours(2));
+        var end = start.plusMinutes(60);
 
-        when(roomRepository.findById(5L)).thenReturn(Optional.of(disabledRoom(5L)));
+        when(roomRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(disabledRoom(5L)));
 
         assertThatThrownBy(() -> bookingManagement.createBooking(5L, start, end))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("disabled room");
 
+        verify(bookingRepository, never()).save(any(Booking.class));
+    }
+
+    @Test
+    void createBooking_throws_whenStartTimeIsInPast() {
+        var start = LocalDateTime.of(2025, 2, 17, 10, 0);
+        var end = start.plusMinutes(30);
+
+        assertThatThrownBy(() -> bookingManagement.createBooking(5L, start, end))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("must not be in the past");
+
+        verify(roomRepository, never()).findByIdForUpdate(any());
         verify(bookingRepository, never()).save(any(Booking.class));
     }
 
@@ -96,12 +109,15 @@ class BookingManagementTest {
     void enforceLifecycle_appliesExpectedTransitions() {
         var now = LocalDateTime.now();
 
-        var confirmed = new Booking(1L, new Booking.TimeRange(now.minusMinutes(5), now.plusMinutes(55)));
+        var confirmedStart = floorToHalfHour(now.minusHours(1));
+        var confirmed = new Booking(1L, new Booking.TimeRange(confirmedStart, confirmedStart.plusMinutes(30)));
 
-        var checkInRequired = new Booking(1L, new Booking.TimeRange(now.minusMinutes(30), now.plusMinutes(30)));
+        var checkInRequiredStart = floorToHalfHour(now.minusHours(2));
+        var checkInRequired = new Booking(1L, new Booking.TimeRange(checkInRequiredStart, checkInRequiredStart.plusMinutes(30)));
         checkInRequired.requireCheckIn();
 
-        var checkedIn = new Booking(1L, new Booking.TimeRange(now.minusHours(1), now.minusMinutes(1)));
+        var checkedInStart = floorToHalfHour(now.minusHours(3));
+        var checkedIn = new Booking(1L, new Booking.TimeRange(checkedInStart, checkedInStart.plusMinutes(30)));
         checkedIn.requireCheckIn();
         checkedIn.checkIn();
 
@@ -123,6 +139,27 @@ class BookingManagementTest {
         verify(bookingRepository).saveAll(List.of(checkedIn));
     }
 
+    private static LocalDateTime floorToHalfHour(LocalDateTime value) {
+        var sanitized = value.withSecond(0).withNano(0);
+        var alignedMinute = sanitized.getMinute() < 30 ? 0 : 30;
+        return sanitized.withMinute(alignedMinute);
+    }
+
+    private static LocalDateTime nextHalfHour(LocalDateTime value) {
+        var normalized = value.withSecond(0).withNano(0);
+        var minute = normalized.getMinute();
+
+        if (minute == 0 || minute == 30) {
+            return normalized;
+        }
+
+        if (minute < 30) {
+            return normalized.withMinute(30);
+        }
+
+        return normalized.plusHours(1).withMinute(0);
+    }
+
     private static Room enabledRoom(Long roomId) {
         return new Room(
                 roomId,
@@ -139,4 +176,3 @@ class BookingManagementTest {
         );
     }
 }
-

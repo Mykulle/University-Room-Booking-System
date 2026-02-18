@@ -32,14 +32,18 @@ public class BookingManagement {
     public BookingDTO createBooking(Long roomId, LocalDateTime startTime, LocalDateTime endTime) {
         if (roomId == null) throw new IllegalArgumentException("roomId is required");
 
-        var room = roomRepository.findById(roomId)
+        var timeRange = new Booking.TimeRange(startTime, endTime);
+
+        if (timeRange.startTime().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("startTime must not be in the past");
+        }
+
+        var room = roomRepository.findByIdForUpdate(roomId)
                 .orElseThrow(() -> new IllegalArgumentException("Room not found with id: " + roomId));
 
         if (room.isDisabled()) {
             throw new IllegalStateException("Cannot create booking for a disabled room");
         }
-
-        var timeRange = new Booking.TimeRange(startTime, endTime);
 
         if (hasOverlappingBlockingBooking(roomId, timeRange)) {
             throw new IllegalStateException("Room is not available for the requested time range");

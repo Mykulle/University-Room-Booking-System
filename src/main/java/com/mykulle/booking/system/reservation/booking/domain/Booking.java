@@ -7,6 +7,7 @@ import org.jmolecules.ddd.annotation.AggregateRoot;
 import org.jmolecules.ddd.annotation.Identity;
 import org.jmolecules.ddd.annotation.ValueObject;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
 
@@ -97,12 +98,37 @@ public class Booking {
             @Column(name = "start_time", nullable = false) LocalDateTime startTime,
             @Column(name = "end_time", nullable = false) LocalDateTime endTime
     ) {
+        private static final long MIN_DURATION_MINUTES = 30L;
+        private static final long MAX_DURATION_MINUTES = 120L;
+
         public TimeRange {
             if (startTime == null || endTime == null) {
                 throw new IllegalArgumentException("startTime and endTime are required");
             }
             if (!endTime.isAfter(startTime)) {
                 throw new IllegalArgumentException("endTime must be after startTime");
+            }
+
+            var durationInMinutes = Duration.between(startTime, endTime).toMinutes();
+            if (durationInMinutes < MIN_DURATION_MINUTES) {
+                throw new IllegalArgumentException("Booking duration must be at least 30 minutes");
+            }
+            if (durationInMinutes > MAX_DURATION_MINUTES) {
+                throw new IllegalArgumentException("Booking duration must be at most 120 minutes");
+            }
+
+            validateAlignedToTimeslot("startTime", startTime);
+            validateAlignedToTimeslot("endTime", endTime);
+        }
+
+        private static void validateAlignedToTimeslot(String field, LocalDateTime value) {
+            if (value.getSecond() != 0 || value.getNano() != 0) {
+                throw new IllegalArgumentException(field + " must have zero seconds and nanoseconds");
+            }
+
+            var minute = value.getMinute();
+            if (minute != 0 && minute != 30) {
+                throw new IllegalArgumentException(field + " must align to 30-minute slots");
             }
         }
 

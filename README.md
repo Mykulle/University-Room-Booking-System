@@ -4,12 +4,85 @@ This repository contains a University Study Room Booking System built with:
 
 - Java
 - Spring Boot
-- H2 (development database)
+- PostgreSQL
 - Domain-Driven Design (bounded contexts, aggregates, value objects)
 - Spring Modulith (explicit module boundaries + verification)
 - jMolecules (layered structure inside each module)
 
 This branch introduces a domain model refactor that removes tight coupling between booking workflows and the room catalog by separating operational state from time-based occupancy.
+
+---
+
+## Local setup and run (backend)
+
+### Prerequisites
+
+- Java 21
+- Maven 3.9+
+- Docker Desktop (with Docker Compose)
+
+### 1) Start PostgreSQL
+
+From the project root:
+
+```bash
+docker compose up -d
+```
+
+This starts PostgreSQL with:
+
+- database: `room_booking`
+- username: `room_booking`
+- password: `room_booking`
+- port: `5432`
+
+### 2) Run the backend
+
+```bash
+mvn spring-boot:run
+```
+
+Backend base URL: `http://localhost:8080`
+
+Swagger UI: `http://localhost:8080/swagger-ui.html`
+
+### 3) Run tests
+
+```bash
+mvn test
+```
+
+### 4) Stop PostgreSQL
+
+```bash
+docker compose down
+```
+
+---
+
+## Quick API example
+
+Create a room:
+
+```bash
+curl -X POST http://localhost:8080/rooms \
+  -H "Content-Type: application/json" \
+  -d "{\"name\":\"Focus Room\",\"roomLocation\":\"LIB-03-12\",\"type\":\"STUDY_ROOM\"}"
+```
+
+Create a booking:
+
+```bash
+curl -X POST http://localhost:8080/bookings \
+  -H "Content-Type: application/json" \
+  -d "{\"roomId\":1,\"startTime\":\"2026-02-18T10:00:00\",\"endTime\":\"2026-02-18T10:30:00\"}"
+```
+
+Check room availability:
+
+```bash
+curl "http://localhost:8080/bookings/availability?roomId=1&startTime=2026-02-18T10:00:00&endTime=2026-02-18T10:30:00"
+```
 
 ---
 
