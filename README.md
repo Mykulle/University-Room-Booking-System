@@ -164,3 +164,56 @@ From project root:
 
 ```bash
 docker compose up -d
+```
+
+This starts:
+- PostgreSQL on `localhost:5432`
+- Keycloak on `http://localhost:8083`
+
+Keycloak Admin Console:
+- URL: `http://localhost:8083/admin`
+- Username: `admin`
+- Password: `admin`
+
+### 1.1) Realm import (automatic)
+The compose setup mounts `keycloak-realm/` into Keycloak import path and runs with `--import-realm`.
+
+Included realm file:
+- `keycloak-realm/room-booking-backend-realm.json`
+
+Imported defaults:
+- Realm: `room-booking-backend`
+- Client: `room-booking-backend` (public OIDC, direct access grants enabled)
+- Realm role: `STAFF`
+- Users:
+  - `staff1` / `staff1_password` (has `STAFF`)
+  - `student1` / `student1_password`
+  - `student2` / `student2_password`
+
+If changes do not apply:
+1. Delete realm `room-booking-backend` in Keycloak.
+2. Restart Keycloak container.
+
+### 2) Run backend
+
+```bash
+mvn spring-boot:run
+```
+
+Backend base URL: `http://localhost:8080`
+Swagger UI: `http://localhost:8080/swagger-ui.html`
+
+### 3) Run tests
+
+```bash
+mvn test
+```
+
+Spring Modulith docs/diagrams are generated during normal test execution at:
+- `target/spring-modulith-docs`
+
+### 4) Stop infrastructure
+
+```bash
+docker compose down
+```
