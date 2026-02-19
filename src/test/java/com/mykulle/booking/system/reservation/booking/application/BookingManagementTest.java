@@ -4,6 +4,9 @@ import com.mykulle.booking.system.reservation.booking.domain.Booking;
 import com.mykulle.booking.system.reservation.booking.domain.BookingRepository;
 import com.mykulle.booking.system.reservation.rooms.domain.Room;
 import com.mykulle.booking.system.reservation.rooms.domain.RoomRepository;
+import com.mykulle.booking.system.useraccount.api.AuthorizationService;
+import com.mykulle.booking.system.useraccount.api.CurrentUserProvider;
+import com.mykulle.booking.system.useraccount.api.UserAccount;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -35,6 +38,12 @@ class BookingManagementTest {
     @Mock
     private BookingMapper mapper;
 
+    @Mock
+    private CurrentUserProvider currentUserProvider;
+
+    @Mock
+    private AuthorizationService authorizationService;
+
     @InjectMocks
     private BookingManagement bookingManagement;
 
@@ -43,7 +52,9 @@ class BookingManagementTest {
         var start = nextHalfHour(LocalDateTime.now().plusHours(1));
         var end = start.plusMinutes(60);
         var room = enabledRoom(5L);
+        var currentUser = new UserAccount("student-1", "Jane", "Doe", "jane@example.edu", List.of("STUDENT"));
 
+        when(currentUserProvider.currentUser()).thenReturn(currentUser);
         when(roomRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(room));
         when(bookingRepository.existsOverlappingBooking(eq(5L), eq(start), eq(end), any())).thenReturn(false);
         when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> invocation.getArgument(0, Booking.class));
@@ -59,6 +70,7 @@ class BookingManagementTest {
         verify(bookingRepository).save(bookingCaptor.capture());
         var saved = bookingCaptor.getValue();
         assertThat(saved.getRoomId()).isEqualTo(5L);
+        assertThat(saved.getBookedByUserId()).isEqualTo("student-1");
         assertThat(saved.getTimeRange().startTime()).isEqualTo(start);
         assertThat(saved.getTimeRange().endTime()).isEqualTo(end);
         assertThat(saved.getStatus()).isEqualTo(Booking.BookingStatus.CONFIRMED);
@@ -68,7 +80,9 @@ class BookingManagementTest {
     void createBooking_throws_whenRoomIsDisabled() {
         var start = nextHalfHour(LocalDateTime.now().plusHours(2));
         var end = start.plusMinutes(60);
+        var currentUser = new UserAccount("student-1", "Jane", "Doe", "jane@example.edu", List.of("STUDENT"));
 
+        when(currentUserProvider.currentUser()).thenReturn(currentUser);
         when(roomRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(disabledRoom(5L)));
 
         assertThatThrownBy(() -> bookingManagement.createBooking(5L, start, end))
@@ -82,7 +96,9 @@ class BookingManagementTest {
     void createBooking_throws_whenStartTimeIsInPast() {
         var start = LocalDateTime.of(2025, 2, 17, 10, 0);
         var end = start.plusMinutes(30);
+        var currentUser = new UserAccount("student-1", "Jane", "Doe", "jane@example.edu", List.of("STUDENT"));
 
+        when(currentUserProvider.currentUser()).thenReturn(currentUser);
         assertThatThrownBy(() -> bookingManagement.createBooking(5L, start, end))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("must not be in the past");
@@ -110,14 +126,14 @@ class BookingManagementTest {
         var now = LocalDateTime.now();
 
         var confirmedStart = floorToHalfHour(now.minusHours(1));
-        var confirmed = new Booking(1L, new Booking.TimeRange(confirmedStart, confirmedStart.plusMinutes(30)));
+        var confirmed = new Booking(1L, "student-1", new Booking.TimeRange(confirmedStart, confirmedStart.plusMinutes(30)));
 
         var checkInRequiredStart = floorToHalfHour(now.minusHours(2));
-        var checkInRequired = new Booking(1L, new Booking.TimeRange(checkInRequiredStart, checkInRequiredStart.plusMinutes(30)));
+        var checkInRequired = new Booking(1L, "student-1", new Booking.TimeRange(checkInRequiredStart, checkInRequiredStart.plusMinutes(30)));
         checkInRequired.requireCheckIn();
 
         var checkedInStart = floorToHalfHour(now.minusHours(3));
-        var checkedIn = new Booking(1L, new Booking.TimeRange(checkedInStart, checkedInStart.plusMinutes(30)));
+        var checkedIn = new Booking(1L, "student-1", new Booking.TimeRange(checkedInStart, checkedInStart.plusMinutes(30)));
         checkedIn.requireCheckIn();
         checkedIn.checkIn();
 

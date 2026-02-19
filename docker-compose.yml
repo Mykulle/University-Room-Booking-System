@@ -16,5 +16,17 @@ services:
       timeout: 5s
       retries: 5
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.3
+    container_name: room-booking-keycloak
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8083:8080"
+    volumes:
+      - ./keycloak-realm:/opt/keycloak/data/import
+
 volumes:
   postgres_data:

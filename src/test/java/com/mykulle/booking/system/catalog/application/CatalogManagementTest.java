@@ -3,6 +3,7 @@ package com.mykulle.booking.system.catalog.application;
 import com.mykulle.booking.system.catalog.RoomCatalogEvent;
 import com.mykulle.booking.system.catalog.domain.CatalogRepository;
 import com.mykulle.booking.system.catalog.domain.CatalogRoom;
+import com.mykulle.booking.system.useraccount.api.AuthorizationService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -33,6 +34,9 @@ class CatalogManagementTest {
     @Mock
     private ApplicationEventPublisher events;
 
+    @Mock
+    private AuthorizationService authorizationService;
+
     @InjectMocks
     private CatalogManagement catalogManagement;
 
@@ -50,6 +54,7 @@ class CatalogManagementTest {
         var result = catalogManagement.addRoom("Focus Room", "LIB-03-12", CatalogRoom.RoomType.STUDY_ROOM);
 
         assertThat(result).isEqualTo(expected);
+        verify(authorizationService).requireStaff();
         verify(catalogRepository).save(any(CatalogRoom.class));
 
         var eventCaptor = ArgumentCaptor.forClass(Object.class);
@@ -78,6 +83,7 @@ class CatalogManagementTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("disable");
 
+        verify(authorizationService).requireStaff();
         verify(catalogRepository, never()).delete(any(CatalogRoom.class));
         verify(events, never()).publishEvent(any());
     }
@@ -95,6 +101,7 @@ class CatalogManagementTest {
 
         catalogManagement.removeRoom(22L);
 
+        verify(authorizationService).requireStaff();
         verify(catalogRepository).delete(room);
 
         var eventCaptor = ArgumentCaptor.forClass(Object.class);

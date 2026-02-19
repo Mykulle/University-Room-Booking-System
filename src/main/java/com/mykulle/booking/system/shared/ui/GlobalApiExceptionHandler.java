@@ -6,6 +6,7 @@ import org.springframework.core.convert.ConversionFailedException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -60,6 +61,14 @@ public class GlobalApiExceptionHandler {
             HttpServletRequest request
     ) {
         return build(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiErrorResponse> handleForbidden(
+            AccessDeniedException ex,
+            HttpServletRequest request
+    ) {
+        return build(HttpStatus.FORBIDDEN, ex.getMessage(), request);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

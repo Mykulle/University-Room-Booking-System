@@ -4,6 +4,7 @@ import com.mykulle.booking.system.catalog.RoomCatalogEvent.*;
 import com.mykulle.booking.system.catalog.domain.CatalogRepository;
 import com.mykulle.booking.system.catalog.domain.CatalogRoom;
 import com.mykulle.booking.system.catalog.domain.CatalogRoom.*;
+import com.mykulle.booking.system.useraccount.api.AuthorizationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -22,11 +23,13 @@ public class CatalogManagement {
     private final CatalogRepository catalogRepository;
     private final RoomMapper mapper;
     private final ApplicationEventPublisher events;
+    private final AuthorizationService authorizationService;
 
     /**
      * Adds a new room to the catalog
      */
     public RoomDTO addRoom(String name, String location, RoomType type) {
+        authorizationService.requireStaff();
         var room = new CatalogRoom(new RoomProfile(name, new RoomLocation(location), type));
         var saved = catalogRepository.save(room);
         events.publishEvent(new RoomAddedToCatalog(
@@ -44,6 +47,7 @@ public class CatalogManagement {
      * Removes a room from the catalog
      */
     public void removeRoom(Long roomId) {
+        authorizationService.requireStaff();
         var room = catalogRepository.findById(roomId)
                 .orElseThrow(() -> new IllegalArgumentException("Room not found with id: " + roomId));
         if(room.isEnabled()) {
@@ -109,6 +113,7 @@ public class CatalogManagement {
      * Enables a room for booking
      */
     public RoomDTO enableRoom(Long roomId) {
+        authorizationService.requireStaff();
         var room = catalogRepository.findById(roomId)
                 .map(CatalogRoom::enable)
                 .orElseThrow(() -> new IllegalArgumentException("Room not found with id: " + roomId));
@@ -124,6 +129,7 @@ public class CatalogManagement {
      * Disables a room for booking
      */
     public RoomDTO disableRoom(Long roomId) {
+        authorizationService.requireStaff();
         var room = catalogRepository.findById(roomId)
                 .map(CatalogRoom::disable)
                 .orElseThrow(() -> new IllegalArgumentException("Room not found with id: " + roomId));

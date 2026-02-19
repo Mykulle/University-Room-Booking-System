@@ -26,6 +26,9 @@ public class Booking {
     @Column(nullable = false)
     private Long roomId;
 
+    @Column(name = "booked_by_user_id")
+    private String bookedByUserId;
+
     @Embedded
     private TimeRange timeRange;
 
@@ -36,10 +39,14 @@ public class Booking {
     @Version
     private Long version;
 
-    public Booking(Long roomId, TimeRange timeRange) {
+    public Booking(Long roomId, String bookedByUserId, TimeRange timeRange) {
         if (roomId == null) throw new IllegalArgumentException("roomId is required");
+        if (bookedByUserId == null || bookedByUserId.isBlank()) {
+            throw new IllegalArgumentException("bookedByUserId is required");
+        }
         if (timeRange == null) throw new IllegalArgumentException("timeRange is required");
         this.roomId = roomId;
+        this.bookedByUserId = bookedByUserId;
         this.timeRange = timeRange;
         this.status = BookingStatus.CONFIRMED;
     }

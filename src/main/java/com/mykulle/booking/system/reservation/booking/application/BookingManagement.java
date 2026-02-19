@@ -4,6 +4,8 @@ import com.mykulle.booking.system.reservation.booking.domain.Booking;
 import com.mykulle.booking.system.reservation.booking.domain.Booking.BookingStatus;
 import com.mykulle.booking.system.reservation.booking.domain.BookingRepository;
 import com.mykulle.booking.system.reservation.rooms.domain.RoomRepository;
+import com.mykulle.booking.system.useraccount.api.AuthorizationService;
+import com.mykulle.booking.system.useraccount.api.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,8 @@ public class BookingManagement {
     private final BookingRepository bookingRepository;
     private final RoomRepository roomRepository;
     private final BookingMapper mapper;
+    private final CurrentUserProvider currentUserProvider;
+    private final AuthorizationService authorizationService;
 
     /**
      * Creates a booking for a given room and time range.
@@ -31,6 +35,7 @@ public class BookingManagement {
      */
     public BookingDTO createBooking(Long roomId, LocalDateTime startTime, LocalDateTime endTime) {
         if (roomId == null) throw new IllegalArgumentException("roomId is required");
+        var currentUser = currentUserProvider.currentUser();
 
         var timeRange = new Booking.TimeRange(startTime, endTime);
 
@@ -49,7 +54,8 @@ public class BookingManagement {
             throw new IllegalStateException("Room is not available for the requested time range");
         }
 
-        var booking = new Booking(roomId, timeRange);
+        var ownerUserId = normalizeOwnerUserId(currentUser.subject());
+        var booking = new Booking(roomId, ownerUserId, timeRange);
         return mapper.toDTO(bookingRepository.save(booking));
     }
 
@@ -62,6 +68,7 @@ public class BookingManagement {
         var booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new IllegalArgumentException("Booking not found with id: " + bookingId));
 
+        authorizationService.requireOwnerOrStaff(booking.getBookedByUserId());
         booking.cancel(LocalDateTime.now());
         return mapper.toDTO(bookingRepository.save(booking));
     }
@@ -75,6 +82,7 @@ public class BookingManagement {
         var booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new IllegalArgumentException("Booking not found with id: " + bookingId));
 
+        authorizationService.requireOwnerOrStaff(booking.getBookedByUserId());
         booking.checkIn();
         return mapper.toDTO(bookingRepository.save(booking));
     }
@@ -184,5 +192,9 @@ public class BookingManagement {
         if (!toUpdate.isEmpty()) {
             bookingRepository.saveAll(toUpdate);
         }
+    }
+
+    private static String normalizeOwnerUserId(String subject) {
+        return (subject == null || subject.isBlank()) ? "anonymous" : subject;
     }
 }

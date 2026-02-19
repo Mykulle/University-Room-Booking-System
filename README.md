@@ -21,7 +21,7 @@ This branch introduces a domain model refactor that removes tight coupling betwe
 - Maven 3.9+
 - Docker Desktop (with Docker Compose)
 
-### 1) Start PostgreSQL
+### 1) Start infrastructure (PostgreSQL + Keycloak)
 
 From the project root:
 
@@ -29,12 +29,18 @@ From the project root:
 docker compose up -d
 ```
 
-This starts PostgreSQL with:
+This starts:
 
-- database: `room_booking`
-- username: `room_booking`
-- password: `room_booking`
-- port: `5432`
+- PostgreSQL:
+  - database: `room_booking`
+  - username: `room_booking`
+  - password: `room_booking`
+  - port: `5432`
+- Keycloak:
+  - URL: `http://localhost:8083`
+  - Admin Console: `http://localhost:8083/admin`
+  - admin username: `admin`
+  - admin password: `admin`
 
 ### 2) Run the backend
 
@@ -46,13 +52,19 @@ Backend base URL: `http://localhost:8080`
 
 Swagger UI: `http://localhost:8080/swagger-ui.html`
 
+Security is enabled by default in `application.properties` with Keycloak issuer:
+- `spring.security.oauth2.resourceserver.jwt.issuer-uri=http://localhost:8083/realms/room-booking-backend`
+
 ### 3) Run tests
 
 ```bash
 mvn test
 ```
 
-### 4) Stop PostgreSQL
+Module documentation and diagrams are generated as part of the normal test run:
+- `target/spring-modulith-docs`
+
+### 4) Stop infrastructure
 
 ```bash
 docker compose down
@@ -132,6 +144,45 @@ This requirement exists because "room status" is a real domain concept for admin
 6. The system must prevent overlapping bookings and enforce booking state transitions correctly
 
 Authentication and authorization are not implemented yet.
+Authentication and authorization are implemented using Spring Security Resource Server + Keycloak JWT.
+
+---
+
+## Authentication and Authorization
+
+Security behavior:
+- All endpoints require authentication, except Swagger docs.
+- Staff-only endpoints:
+  - `POST /rooms`
+  - `PUT /rooms/**`
+  - `DELETE /rooms/**`
+- Booking ownership rules:
+  - Booking creator is persisted as `bookedByUserId`.
+  - `cancel` / `check-in` is allowed for booking owner or `STAFF`.
+
+Keycloak local realm setup:
+- Realm: `room-booking-backend`
+- Client: `room-booking-backend` (OIDC, Direct Access Grants enabled)
+- Realm role: `STAFF`
+- Example users:
+  - `staff1` with `STAFF` role
+  - `student1` without `STAFF`
+  - `student2` without `STAFF`
+
+Fetch a token (password grant):
+
+```bash
+curl -X POST "http://localhost:8083/realms/room-booking-backend/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=password&client_id=room-booking-backend&username=student1&password=student1_password"
+```
+
+Use token for API calls:
+
+```bash
+curl -X GET http://localhost:8080/bookings \
+  -H "Authorization: Bearer <access_token>"
+```
 
 ---
 
@@ -221,6 +272,8 @@ In this repository, Spring Modulith is used for two purposes:
     - Catalog publishes domain events when rooms are created, removed, enabled, disabled
     - Reservation listens to these events to update its local room cache
     - Enables eventual consistency without tight runtime coupling
+
+
 
 ## API Documentation(Swagger UI)
 The API documentation is available at: http://localhost:8080/swagger-ui.html
